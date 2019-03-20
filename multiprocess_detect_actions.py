@@ -42,7 +42,7 @@ def read_frames(reader, frame_q, use_webcam):
         time.sleep(15)
         frame_cnt = 0
         while True:
-            #if frame_cnt % 5 == 0:    
+            #if frame_cnt % 5 == 0:
             #    ret, frame = reader.read()
             #    cur_img = frame[:,:,::-1]
             #    frame_q.put(cur_img)
@@ -124,7 +124,7 @@ def run_obj_det_and_track_in_batches(frame_q, detection_q, det_vis_q, obj_batch_
     tracker = obj.Tracker(timesteps=T)
     while True:
         img_batch = []
-        for _ in range(obj_batch_size): 
+        for _ in range(obj_batch_size):
             cur_img = frame_q.get()
             img_batch.append(cur_img)
         #expanded_img = np.expand_dims(cur_img, axis=0)
@@ -168,9 +168,9 @@ def run_act_detector(shape, detection_q, actions_q, act_gpu):
     #input_frames, temporal_rois, temporal_roi_batch_indices, cropped_frames = act_detector.crop_tubes_in_tf([T,H,W,3])
     memory_size = act_detector.timesteps - ACTION_FREQ
     updated_frames, temporal_rois, temporal_roi_batch_indices, cropped_frames = act_detector.crop_tubes_in_tf_with_memory(shape, memory_size)
-    
+
     rois, roi_batch_indices, pred_probs = act_detector.define_inference_with_placeholders_noinput(cropped_frames)
-    
+
 
     act_detector.restore_model(ckpt_path)
 
@@ -182,11 +182,11 @@ def run_act_detector(shape, detection_q, actions_q, act_gpu):
             cur_img, active_actors, rois_np, temporal_rois_np = detection_q.get()
             images.append(cur_img)
             #print("action frame: %i" % len(images))
-        
+
         if not active_actors:
             prob_dict = {}
             if SHOW_CAMS:
-                prob_dict = {"cams": visualize_cams({})} 
+                prob_dict = {"cams": visualize_cams({})}
         else:
             # use the last active actors and rois vectors
             no_actors = len(active_actors)
@@ -199,11 +199,11 @@ def run_act_detector(shape, detection_q, actions_q, act_gpu):
                 temporal_rois_np = temporal_rois_np[:14]
                 active_actors = active_actors[:14]
 
-            #feed_dict = {input_frames:cur_input_sequence, 
+            #feed_dict = {input_frames:cur_input_sequence,
             feed_dict = {updated_frames:cur_input_sequence, # only update last #action_freq frames
                             temporal_rois: temporal_rois_np,
                             temporal_roi_batch_indices: np.zeros(no_actors),
-                            rois:rois_np, 
+                            rois:rois_np,
                             roi_batch_indices:np.arange(no_actors)}
             run_dict = {'pred_probs': pred_probs}
 
@@ -234,14 +234,14 @@ def run_act_detector(shape, detection_q, actions_q, act_gpu):
             else:
                 # prob_dict = out_dict
                 prob_dict = {"cams": visualize_cams(out_dict)} # do it here so it doesnt slow down visualization process
-            
+
         processed_frames_cnt += ACTION_FREQ # each turn we process this many frames
-        
+
         if processed_frames_cnt >= act_detector.timesteps / 2:
             # we are doing this so we can skip the initialization period
             # first frame needs timesteps / 2 frames to be processed before visualizing
             actions_q.put(prob_dict)
-        
+
         #print(prob_dict.keys())
 
 
@@ -270,9 +270,9 @@ def run_visualization(writer, det_vis_q, actions_q, display):
             img_new_width = int(image.shape[1] / float(image.shape[0]) * img_new_height)
             img_to_show = cv2.resize(image.copy(), (img_new_width,img_new_height))[:,:,::-1]
             out_img = np.array(np.concatenate([img_to_show, img_to_concat], axis=1)[:,:,::-1])
-        
-    
-        if display: 
+
+
+        if display:
             cv2.putText(out_img, fps_message, (25, 25), 0, 1, (255,0,0), 1)
             cv2.imshow('results', out_img[:,:,::-1])
             cv2.waitKey(DELAY//2)
@@ -280,7 +280,7 @@ def run_visualization(writer, det_vis_q, actions_q, display):
         #else:
         writer.append_data(out_img)
         frame_cnt += 1
-        
+
         # FPS info
         end_time = time.time()
         duration = end_time - start_time
@@ -307,21 +307,21 @@ def main():
     obj_batch_size = args.obj_batch_size
     obj_gpu = args.obj_gpu
     act_gpu = args.act_gpu
-    
+
     #actor_to_display = 6 # for cams
 
     video_path = args.video_path
     basename = os.path.basename(video_path).split('.')[0]
-    
+
     #out_vid_path = "./output_videos/%s_output.mp4" % (basename if not SHOW_CAMS else basename+'_cams_actor_%.2d' % actor_to_display)
-    out_vid_path = "./output_videos/%s_output.mp4" % basename 
-    out_vid_path = out_vid_path if not use_webcam else './output_videos/webcam_output.mp4' 
+    out_vid_path = "./output_videos/%s_output.mp4" % basename
+    out_vid_path = out_vid_path if not use_webcam else './output_videos/webcam_output.mp4'
 
     # video_path = "./tests/chase1Person1View3Point0.mp4"
     # out_vid_path = 'output.mp4'
 
     main_folder = './'
-    
+
 
     if use_webcam:
         print("Using webcam")
@@ -344,7 +344,7 @@ def main():
         #T = tracker.timesteps
     print("H: %i, W: %i" % (H, W))
     #T = 32
-    
+
     # fps_divider = 1
     print('Running actions every %i frame' % ACTION_FREQ)
 
@@ -352,7 +352,7 @@ def main():
     print("Writing output to %s" % out_vid_path)
     shape = [T,H,W,3]
 
-    
+
 
     frame_q = Queue()
     detection_q = Queue()
@@ -407,8 +407,8 @@ def visualize_detection_results(img_np, active_actors, prob_dict):
         actor_id = cur_actor['actor_id']
         cur_act_results = prob_dict[actor_id] if actor_id in prob_dict else []
         cur_box, cur_score, cur_class = cur_actor['all_boxes'][-1], cur_actor['all_scores'][-1], 1
-        
-        #if cur_score < score_th: 
+
+        #if cur_score < score_th:
         #    continue
 
         top, left, bottom, right = cur_box
@@ -428,21 +428,21 @@ def visualize_detection_results(img_np, active_actors, prob_dict):
         action_message_list = ["%s:%.3f" % (actres[0][:20], actres[1]) for actres in cur_act_results if actres[1]>action_th]
         # action_message = " ".join(action_message_list)
 
-        color = COLORS[actor_id]
+        raw_colors = COLORS[actor_id]
+        rect_color = tuple(int(raw_color) for raw_color in raw_colors)
+        text_color = tuple(255-color_value for color_value in rect_color)
 
-        cv2.rectangle(disp_img, (left,top), (right,bottom), color, 3)
+        cv2.rectangle(disp_img, (left,top), (right,bottom), rect_color, 3)
 
         font_size =  max(0.5,(right - left)/50.0/float(len(message)))
-        cv2.rectangle(disp_img, (left, top-int(font_size*40)), (right,top), color, -1)
-        #cv2.putText(disp_img, message, (left, top-12), 0, font_size, (255,255,255)-color, 1)
-        cv2.putText(disp_img, message, (left, top-12), 0, font_size, (255,255,255), 1)
+        cv2.rectangle(disp_img, (left, top-int(font_size*40)), (right,top), rect_color, -1)
+        cv2.putText(disp_img, message, (left, top-12), 0, font_size, rect_color, 1)
 
         #action message writing
         cv2.rectangle(disp_img, (left, top), (right,top+10*len(action_message_list)), color, -1)
         for aa, action_message in enumerate(action_message_list):
             offset = aa*10
-            #cv2.putText(disp_img, action_message, (left, top+5+offset), 0, 0.5, (255,255,255)-color, 1)
-            cv2.putText(disp_img, action_message, (left, top+5+offset), 0, 0.5, (255,255,255), 1)
+            cv2.putText(disp_img, action_message, (left, top+5+offset), 0, 0.5, rect_color, 1)
 
     return disp_img
 
@@ -497,7 +497,7 @@ def visualize_cams(out_dict):#, actor_idx):
 
                 overlay = cv2.resize(cur_frame.copy(), (100,100))
                 overlay = cv2.addWeighted(overlay, 0.5, colored_cam, 0.5, 0)
-                
+
                 if cc > 2:
                     xx = tt + 5 # 4 timesteps visualized per class + 1 empty space
                     yy = cc - 3 # 3 classes per column

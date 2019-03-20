@@ -22,7 +22,7 @@ def main():
 
     args = parser.parse_args()
     display = (args.display == "True" or args.display == "true")
-    
+
     #actor_to_display = 6 # for cams
 
     video_path = args.video_path
@@ -48,7 +48,7 @@ def main():
     obj_detector = obj.Object_Detector(obj_detection_graph)
     tracker = obj.Tracker()
 
-    
+
 
 
     print("Reading video file %s" % video_path)
@@ -63,7 +63,7 @@ def main():
         writer = imageio.get_writer(out_vid_path, fps=fps)
         print("Writing output to %s" % out_vid_path)
 
-    
+
     # act_detector = act.Action_Detector('i3d_tail')
     # ckpt_name = 'model_ckpt_RGB_i3d_pooled_tail-4'
     act_detector = act.Action_Detector('soft_attn')
@@ -74,9 +74,9 @@ def main():
     #input_frames, temporal_rois, temporal_roi_batch_indices, cropped_frames = act_detector.crop_tubes_in_tf([T,H,W,3])
     memory_size = act_detector.timesteps - action_freq
     updated_frames, temporal_rois, temporal_roi_batch_indices, cropped_frames = act_detector.crop_tubes_in_tf_with_memory([T,H,W,3], memory_size)
-    
+
     rois, roi_batch_indices, pred_probs = act_detector.define_inference_with_placeholders_noinput(cropped_frames)
-    
+
 
     ckpt_path = os.path.join(main_folder, 'action_detection', 'weights', ckpt_name)
     act_detector.restore_model(ckpt_path)
@@ -109,11 +109,11 @@ def main():
                 rois_np = rois_np[:14]
                 temporal_rois_np = temporal_rois_np[:14]
 
-            #feed_dict = {input_frames:cur_input_sequence, 
+            #feed_dict = {input_frames:cur_input_sequence,
             feed_dict = {updated_frames:cur_input_sequence, # only update last #action_freq frames
                          temporal_rois: temporal_rois_np,
                          temporal_roi_batch_indices: np.zeros(no_actors),
-                         rois:rois_np, 
+                         rois:rois_np,
                          roi_batch_indices:np.arange(no_actors)}
             run_dict = {'pred_probs': pred_probs}
             if SHOW_CAMS:
@@ -184,12 +184,12 @@ def main():
                         continue
                 else:
                     continue
-            if display: 
+            if display:
                 cv2.imshow('results', out_img[:,:,::-1])
                 cv2.waitKey(10)
             else:
                 writer.append_data(out_img)
-        
+
     if not display:
         writer.close()
 
@@ -212,8 +212,8 @@ def visualize_detection_results(img_np, active_actors, prob_dict):
             cur_box, cur_score, cur_class = cur_actor['all_boxes'][-16], cur_actor['all_scores'][0], 1
         except IndexError:
             continue
-        
-        if cur_score < score_th: 
+
+        if cur_score < score_th:
             continue
 
         top, left, bottom, right = cur_box
@@ -233,19 +233,21 @@ def visualize_detection_results(img_np, active_actors, prob_dict):
         action_message_list = ["%s:%.3f" % (actres[0][0:7], actres[1]) for actres in cur_act_results if actres[1]>action_th]
         # action_message = " ".join(action_message_list)
 
-        color = COLORS[actor_id]
+        raw_colors = COLORS[actor_id]
+        rect_color = tuple(int(raw_color) for raw_color in raw_colors)
+        text_color = tuple(255-color_value for color_value in rect_color)
 
-        cv2.rectangle(disp_img, (left,top), (right,bottom), color, 3)
+        cv2.rectangle(disp_img, (left,top), (right,bottom), rect_color, 3)
 
         font_size =  max(0.5,(right - left)/50.0/float(len(message)))
-        cv2.rectangle(disp_img, (left, top-int(font_size*40)), (right,top), color, -1)
-        cv2.putText(disp_img, message, (left, top-12), 0, font_size, (255,255,255)-color, 1)
+        cv2.rectangle(disp_img, (left, top-int(font_size*40)), (right,top), rect_color, -1)
+        cv2.putText(disp_img, message, (left, top-12), 0, font_size, text_color, 1)
 
         #action message writing
-        cv2.rectangle(disp_img, (left, top), (right,top+10*len(action_message_list)), color, -1)
+        cv2.rectangle(disp_img, (left, top), (right,top+10*len(action_message_list)), rect_color, -1)
         for aa, action_message in enumerate(action_message_list):
             offset = aa*10
-            cv2.putText(disp_img, action_message, (left, top+5+offset), 0, 0.5, (255,255,255)-color, 1)
+            cv2.putText(disp_img, action_message, (left, top+5+offset), 0, 0.5, text_color, 1)
 
     return disp_img
 
@@ -301,7 +303,7 @@ def visualize_cams(image, input_frames, out_dict, actor_idx):
 
 
 
-    
+
 
 
 if __name__ == '__main__':
