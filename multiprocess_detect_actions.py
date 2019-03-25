@@ -431,7 +431,7 @@ def main():
                 if frame_q.qsize() == 0 and detection_q.qsize() == 0 and actions_q.qsize() == 0: # if all the queues are empty, we are done
                     # writer.close()
                     break
-    except KeyboardInterrupt:
+    # except KeyboardInterrupt:
         # writer.close()
         # if use_webcam:
             # reader.release()
