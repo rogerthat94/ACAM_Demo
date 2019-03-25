@@ -13,6 +13,7 @@ import action_detection.action_detector as act
 
 from multiprocessing import Process, Queue
 
+import struct
 import time
 #SHOW_CAMS = True
 SHOW_CAMS = False
@@ -37,7 +38,7 @@ T = 32 # Timesteps
 # separate process definitions
 
 # frame reader
-def read_frames(reader, frame_q, use_webcam):
+def read_frames(conn, frame_q, use_webcam):
     if use_webcam:
         time.sleep(15)
         frame_cnt = 0
@@ -48,13 +49,17 @@ def read_frames(reader, frame_q, use_webcam):
             #    frame_q.put(cur_img)
             #else:
             #    ret, frame = reader.read()
-            ret, frame = reader.read()
+            data_size = struct.unpack("!I", recv_n_bytes(conn, 4))[0]
+            data = recv_n_bytes(conn, data_size)
+            np_data = np.fromstring(data, dtype=np.uint8)
+            frame = cv2.imdecode(np_data, cv2.IMREAD_COLOR)
+
             cur_img = frame[:,:,::-1] # bgr to rgb from opencv reader
             frame_q.put(cur_img)
-            if frame_q.qsize() > 100:
-                time.sleep(1)
-            else:
-                time.sleep(DELAY/1000.)
+            # if frame_q.qsize() > 100:
+            #     time.sleep(1)
+            # else:
+            #     time.sleep(DELAY/1000.)
             #print(cur_img.shape)
     else:
         #for cur_img in reader: # this is imageio reader, it uses rgb
@@ -247,7 +252,7 @@ def run_act_detector(shape, detection_q, actions_q, act_gpu):
 
 
 # Visualization
-def run_visualization(writer, det_vis_q, actions_q, display):
+def run_visualization(conn, det_vis_q, actions_q, display):
     frame_cnt = 0
     # prob_dict = actions_q.get() # skip the first one
 
@@ -272,13 +277,19 @@ def run_visualization(writer, det_vis_q, actions_q, display):
             out_img = np.array(np.concatenate([img_to_show, img_to_concat], axis=1)[:,:,::-1])
 
 
-        if display:
-            cv2.putText(out_img, fps_message, (25, 25), 0, 1, (255,0,0), 1)
-            cv2.imshow('results', out_img[:,:,::-1])
-            cv2.waitKey(DELAY//2)
-            #cv2.waitKey(1)
-        #else:
-        writer.append_data(out_img)
+        # if display:
+        #     cv2.putText(out_img, fps_message, (25, 25), 0, 1, (255,0,0), 1)
+        #     cv2.imshow('results', out_img[:,:,::-1])
+        #     cv2.waitKey(DELAY//2)
+        #     #cv2.waitKey(1)
+        # #else:
+        # writer.append_data(out_img)
+        cv2.putText(out_img, fps_message, (25, 25), 0, 1, (255,0,0), 1)
+        ret, jpeg_frame=cv2.imencode('.jpg', out_img[:,:,::-1])
+        jpeg_frame_str = jpeg_frame.tostring()
+        data_size = struct.pack("!I", len(jpeg_frame_str))
+        conn.send(data_size)
+        conn.sendall(jpeg_frame_str)
         frame_cnt += 1
 
         # FPS info
@@ -289,6 +300,23 @@ def run_visualization(writer, det_vis_q, actions_q, display):
         if frame_cnt % 16 == 0 :
             print("avg time per frame: %.3f" % np.mean(durations))
             fps_message = "FPS: %i" % int(1 / np.mean(durations))
+
+
+def recv_n_bytes(conn, n):
+    """ Convenience method for receiving exactly n bytes from
+        socket (assuming it's open and connected).
+    """
+
+    # based on https://docs.python.org/3.4/howto/sockets.html
+    chunks = []
+    bytes_recd = 0
+    while bytes_recd < n:
+        chunk = conn.recv(n - bytes_recd)
+        if chunk == b'':
+            raise RuntimeError("socket connection broken")
+        chunks.append(chunk)
+        bytes_recd += len(chunk)
+    return b''.join(chunks)
 
 
 def main():
@@ -322,34 +350,46 @@ def main():
 
     main_folder = './'
 
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind((HOST, PORT))
+    s.listen(10)
 
-    if use_webcam:
-        print("Using webcam")
-        reader = cv2.VideoCapture(0)
-        ## We can set the input shape from webcam, I use the default 640x480 to achieve real-time
-        #reader.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-        #reader.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-        ret, frame = reader.read()
-        if ret:
-            H,W,C = frame.shape
-        else:
-            H = 480
-            W = 640
-        fps = 1000//DELAY
-    else:
-        print("Reading video file %s" % video_path)
-        reader = imageio.get_reader(video_path, 'ffmpeg')
-        fps = reader.get_meta_data()['fps'] #// fps_divider
-        W, H = reader.get_meta_data()['size']
-        #T = tracker.timesteps
+    conn,addr=s.accept()
+
+    # if use_webcam:
+    #     print("Using webcam")
+    #     reader = cv2.VideoCapture(0)
+    #     ## We can set the input shape from webcam, I use the default 640x480 to achieve real-time
+    #     #reader.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+    #     #reader.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+    #     ret, frame = reader.read()
+    #     if ret:
+    #         H,W,C = frame.shape
+    #     else:
+    #         H = 480
+    #         W = 640
+    #     fps = 1000//DELAY
+    # else:
+    #     print("Reading video file %s" % video_path)
+    #     reader = imageio.get_reader(video_path, 'ffmpeg')
+    #     fps = reader.get_meta_data()['fps'] #// fps_divider
+    #     W, H = reader.get_meta_data()['size']
+    #     #T = tracker.timesteps
+
+    data_size = struct.unpack("!I", recv_n_bytes(conn, 4))[0]
+    data = recv_n_bytes(conn, data_size)
+    np_data = np.fromstring(data, dtype=np.uint8)
+    frame = cv2.imdecode(np_data, cv2.IMREAD_COLOR)
+    H,W,C = frame.shape
+
     print("H: %i, W: %i" % (H, W))
     #T = 32
 
     # fps_divider = 1
     print('Running actions every %i frame' % ACTION_FREQ)
 
-    writer = imageio.get_writer(out_vid_path, fps=fps)
-    print("Writing output to %s" % out_vid_path)
+    # writer = imageio.get_writer(out_vid_path, fps=fps)
+    # print("Writing output to %s" % out_vid_path)
     shape = [T,H,W,3]
 
 
@@ -359,11 +399,11 @@ def main():
     det_vis_q = Queue()
     actions_q = Queue()
 
-    frame_reader_p = Process(target=read_frames, args=(reader, frame_q, use_webcam))
+    frame_reader_p = Process(target=read_frames, args=(conn, frame_q, use_webcam))
     #obj_detector_p = Process(target=run_obj_det_and_track, args=(frame_q, detection_q, det_vis_q))
     obj_detector_p = Process(target=run_obj_det_and_track_in_batches, args=(frame_q, detection_q, det_vis_q, obj_batch_size, obj_gpu))
     action_detector_p = Process(target=run_act_detector, args=(shape, detection_q, actions_q, act_gpu))
-    visualization_p = Process(target=run_visualization, args=(writer, det_vis_q, actions_q, display))
+    visualization_p = Process(target=run_visualization, args=(conn, det_vis_q, actions_q, display))
 
     processes = [frame_reader_p, obj_detector_p, action_detector_p, visualization_p]
 
