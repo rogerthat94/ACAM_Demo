@@ -294,7 +294,6 @@ def run_visualization(conn, det_vis_q, actions_q, display):
         data_size = struct.pack("!I", len(jpeg_frame_str))
         conn.send(data_size)
         conn.sendall(jpeg_frame_str)
-        print('sent frame')
         frame_cnt += 1
 
         # FPS info
