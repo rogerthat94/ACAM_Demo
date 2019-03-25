@@ -59,6 +59,8 @@ def read_frames(conn, frame_q, use_webcam):
             frame = cv2.imdecode(np_data, cv2.IMREAD_COLOR)
 
             cur_img = frame[:,:,::-1] # bgr to rgb from opencv reader
+            if frame_q.full():
+                frame_q.get_nowait()
             frame_q.put(cur_img)
             # if frame_q.qsize() > 100:
             #     time.sleep(1)
@@ -72,6 +74,8 @@ def read_frames(conn, frame_q, use_webcam):
             while frame_q.qsize() > 500: # so that we dont use huge amounts of memory
                 time.sleep(1)
             cur_img = reader.get_next_data()
+            if frame_q.full():
+                frame_q.get_nowait()
             frame_q.put(cur_img)
             #shape = cur_img.shape
             #noisy_img = np.uint8(cur_img.astype(np.float) + np.random.randn(*shape) * 20)
@@ -400,7 +404,7 @@ def main():
 
 
 
-    frame_q = Queue()
+    frame_q = Queue(1)
     detection_q = Queue()
     det_vis_q = Queue()
     actions_q = Queue()
