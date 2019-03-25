@@ -359,7 +359,9 @@ def main():
     s.bind((HOST, PORT))
     s.listen(10)
 
+    print('Ready for client connection')
     conn,addr=s.accept()
+    print('Client connected')
 
     # if use_webcam:
     #     print("Using webcam")
@@ -383,7 +385,7 @@ def main():
 
     data_size = struct.unpack("!I", recv_n_bytes(conn, 4))[0]
     data = recv_n_bytes(conn, data_size)
-    np_data = np.fromstring(data, dtype=np.uint8)
+    np_data = np.frombuffer(data, dtype=np.uint8)
     frame = cv2.imdecode(np_data, cv2.IMREAD_COLOR)
     H,W,C = frame.shape
 
