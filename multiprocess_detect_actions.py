@@ -404,7 +404,7 @@ def main():
 
 
 
-    frame_q = Queue(1)
+    frame_q = Queue(15)
     detection_q = Queue()
     det_vis_q = Queue()
     actions_q = Queue()
