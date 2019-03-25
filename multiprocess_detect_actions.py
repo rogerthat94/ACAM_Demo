@@ -433,7 +433,7 @@ def main():
                     break
     except KeyboardInterrupt:
         # writer.close()
-        if use_webcam:
+        # if use_webcam:
             # reader.release()
     print("Done!")
 
