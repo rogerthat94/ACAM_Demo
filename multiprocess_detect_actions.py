@@ -12,6 +12,7 @@ import object_detection.object_detector as obj
 import action_detection.action_detector as act
 
 from multiprocessing import Process, Queue
+from Queue import Empty
 
 import socket
 import struct
@@ -62,7 +63,7 @@ def read_frames(conn, frame_q, use_webcam):
             if frame_q.full():
                 try:
                     frame_q.get_nowait()
-                except Queue.Empty as e:
+                except Empty as e:
                     pass
             frame_q.put(cur_img)
             # if frame_q.qsize() > 100:
