@@ -294,6 +294,7 @@ def run_visualization(conn, det_vis_q, actions_q, display):
         data_size = struct.pack("!I", len(jpeg_frame_str))
         conn.send(data_size)
         conn.sendall(jpeg_frame_str)
+        print('sent frame')
         frame_cnt += 1
 
         # FPS info
@@ -426,12 +427,12 @@ def main():
                 time.sleep(1)
                 print("frame_q: %i, obj_q: %i, act_q: %i, vis_q: %i" % (frame_q.qsize(), detection_q.qsize(), actions_q.qsize(), det_vis_q.qsize()))
                 if frame_q.qsize() == 0 and detection_q.qsize() == 0 and actions_q.qsize() == 0: # if all the queues are empty, we are done
-                    writer.close()
+                    # writer.close()
                     break
     except KeyboardInterrupt:
-        writer.close()
+        # writer.close()
         if use_webcam:
-            reader.release()
+            # reader.release()
     print("Done!")
 
 
