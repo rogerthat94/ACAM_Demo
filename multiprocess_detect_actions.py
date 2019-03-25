@@ -12,7 +12,7 @@ import object_detection.object_detector as obj
 import action_detection.action_detector as act
 
 from multiprocessing import Process, Queue
-from Queue import Empty
+from queue import Empty
 
 import socket
 import struct
