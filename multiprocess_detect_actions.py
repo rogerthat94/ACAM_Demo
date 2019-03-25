@@ -60,7 +60,10 @@ def read_frames(conn, frame_q, use_webcam):
 
             cur_img = frame[:,:,::-1] # bgr to rgb from opencv reader
             if frame_q.full():
-                frame_q.get_nowait()
+                try:
+                    frame_q.get_nowait()
+                except Queue.Empty as e:
+                    pass
             frame_q.put(cur_img)
             # if frame_q.qsize() > 100:
             #     time.sleep(1)
