@@ -1,6 +1,3 @@
-import warnings
-warnings.filterwarnings("ignore", category=DeprecationWarning) 
-
 import numpy as np
 import cv2
 import imageio
@@ -58,7 +55,7 @@ def read_frames(conn, frame_q, use_webcam):
             #    ret, frame = reader.read()
             data_size = struct.unpack("!I", recv_n_bytes(conn, 4))[0]
             data = recv_n_bytes(conn, data_size)
-            np_data = np.fromstring(data, dtype=np.uint8)
+            np_data = np.frombuffer(data, dtype=np.uint8)
             frame = cv2.imdecode(np_data, cv2.IMREAD_COLOR)
 
             cur_img = frame[:,:,::-1] # bgr to rgb from opencv reader
