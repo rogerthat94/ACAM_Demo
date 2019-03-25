@@ -13,6 +13,7 @@ import action_detection.action_detector as act
 
 from multiprocessing import Process, Queue
 
+import socket
 import struct
 import time
 #SHOW_CAMS = True
@@ -34,6 +35,9 @@ DELAY = 60 # ms, this limits the input around 16 fps. This makes sense as the ac
 #ACT_GPU = "1" # if using nas and/or high res input use different GPUs for each process
 
 T = 32 # Timesteps
+
+HOST = ''
+PORT = 8089
 
 # separate process definitions
 
