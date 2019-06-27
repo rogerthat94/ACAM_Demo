@@ -172,7 +172,7 @@ def main():
         # Print top_k probs
         out_img = visualize_detection_results(cur_img, tracker.active_actors, prob_dict)
 
-        num_to_viz = int(tracker.timesteps / 2)
+        num_to_viz = min(tracker.timesteps, 16)
         
         if frame_cnt > num_to_viz:
             out_img = visualize_detection_results(tracker.frame_history[-num_to_viz], tracker.active_actors, prob_dict)
