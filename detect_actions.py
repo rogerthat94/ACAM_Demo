@@ -14,6 +14,9 @@ import action_detection.action_detector as act
 import time
 DISPLAY = False
 SHOW_CAMS = False
+
+NUM_INPUT_FRAMES = 32
+
 def main():
     parser = argparse.ArgumentParser()
 
@@ -46,16 +49,13 @@ def main():
 
 
     obj_detector = obj.Object_Detector(obj_detection_graph)
-    tracker = obj.Tracker()
+    tracker = obj.Tracker(timesteps=NUM_INPUT_FRAMES)
 
     
 
 
     print("Reading video file %s" % video_path)
     reader = imageio.get_reader(video_path, 'ffmpeg')
-    action_freq = 8
-    # fps_divider = 1
-    print('Running actions every %i frame' % action_freq)
     fps = reader.get_meta_data()['fps'] #// fps_divider
     W, H = reader.get_meta_data()['size']
     T = tracker.timesteps
@@ -66,15 +66,13 @@ def main():
     
     # act_detector = act.Action_Detector('i3d_tail')
     # ckpt_name = 'model_ckpt_RGB_i3d_pooled_tail-4'
-    act_detector = act.Action_Detector('soft_attn')
+    act_detector = act.Action_Detector('soft_attn', timesteps=NUM_INPUT_FRAMES)
     #ckpt_name = 'model_ckpt_RGB_soft_attn-16'
     #ckpt_name = 'model_ckpt_soft_attn_ava-23'
     ckpt_name = 'model_ckpt_soft_attn_pooled_cosine_drop_ava-130'
 
-    #input_frames, temporal_rois, temporal_roi_batch_indices, cropped_frames = act_detector.crop_tubes_in_tf([T,H,W,3])
-    memory_size = act_detector.timesteps - action_freq
-    updated_frames, temporal_rois, temporal_roi_batch_indices, cropped_frames = act_detector.crop_tubes_in_tf_with_memory([T,H,W,3], memory_size)
     
+    input_frames, temporal_rois, temporal_roi_batch_indices, cropped_frames = act_detector.crop_tubes_in_tf([T,H,W,3])    
     rois, roi_batch_indices, pred_probs = act_detector.define_inference_with_placeholders_noinput(cropped_frames)
     
 
@@ -98,10 +96,10 @@ def main():
         t3 = time.time(); print('tracker %.2f seconds' % (t3-t2))
         no_actors = len(tracker.active_actors)
 
-        if tracker.active_actors and frame_cnt % action_freq == 0:
+        if tracker.active_actors and len(tracker.frame_history) >= tracker.timesteps:
             probs = []
 
-            cur_input_sequence = np.expand_dims(np.stack(tracker.frame_history[-action_freq:], axis=0), axis=0)
+            cur_input_sequence = np.expand_dims(np.stack(tracker.frame_history[-tracker.timesteps:], axis=0), axis=0)
 
             rois_np, temporal_rois_np = tracker.generate_all_rois()
             if no_actors > 14:
@@ -109,8 +107,7 @@ def main():
                 rois_np = rois_np[:14]
                 temporal_rois_np = temporal_rois_np[:14]
 
-            #feed_dict = {input_frames:cur_input_sequence, 
-            feed_dict = {updated_frames:cur_input_sequence, # only update last #action_freq frames
+            feed_dict = {input_frames:cur_input_sequence,
                          temporal_rois: temporal_rois_np,
                          temporal_roi_batch_indices: np.zeros(no_actors),
                          rois:rois_np, 
@@ -139,6 +136,7 @@ def main():
                 prob_dict[cur_actor_id] = cur_results
 
             t5 = time.time(); print('action %.2f seconds' % (t5-t3))
+            # break
         # # Action detection
         # no_actors = len(tracker.active_actors)
         # #batch_np = np.zeros([no_actors, act_detector.timesteps] + act_detector.input_size + [3], np.uint8)
@@ -172,9 +170,12 @@ def main():
 
         #t5 = time.time(); print('action %.2f seconds' % (t5-t4))
         # Print top_k probs
-        #out_img = visualize_detection_results(cur_img, tracker.active_actors, prob_dict)
-        if frame_cnt > 16:
-            out_img = visualize_detection_results(tracker.frame_history[-16], tracker.active_actors, prob_dict)
+        out_img = visualize_detection_results(cur_img, tracker.active_actors, prob_dict)
+
+        num_to_viz = int(tracker.timesteps / 2)
+        
+        if frame_cnt > num_to_viz:
+            out_img = visualize_detection_results(tracker.frame_history[-num_to_viz], tracker.active_actors, prob_dict)
             if SHOW_CAMS:
                 if tracker.active_actors:
                     actor_indices = [ii for ii in range(no_actors) if tracker.active_actors[ii]['actor_id'] == actor_to_display]
